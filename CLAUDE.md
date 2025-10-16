@@ -213,3 +213,6 @@ Chunks are prefixed with course/lesson context (e.g., "Course X Lesson 3 content
 - Static frontend: `frontend/` (served by FastAPI)
 - Environment config: `.env` (required)
 - Dependencies: `pyproject.toml`, `uv.lock`
+- always use uv to run the server do not use pip directly
+- make sure to use uv to manage all dependencies
+- use uv to run Python files
