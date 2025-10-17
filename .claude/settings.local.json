@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(curl:*)",
+      "Bash(lastshot:*)",
+      "Read(//mnt/c/Users/Jorge/Pictures/Screenshots/**)"
     ],
     "deny": [],
     "ask": []

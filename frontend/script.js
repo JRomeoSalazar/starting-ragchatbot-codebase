@@ -115,32 +115,65 @@ function addMessage(content, type, sources = null, isWelcome = false) {
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${type}${isWelcome ? ' welcome-message' : ''}`;
     messageDiv.id = `message-${messageId}`;
-    
+
     // Convert markdown to HTML for assistant messages
     const displayContent = type === 'assistant' ? marked.parse(content) : escapeHtml(content);
-    
+
     let html = `<div class="message-content">${displayContent}</div>`;
-    
+
     if (sources && sources.length > 0) {
+        // Format sources with clickable links in a vertical list
+        const formattedSources = sources.map((source, index) => {
+            let sourceContent = '';
+
+            // Handle both old format (strings) and new format (objects with text/url)
+            if (typeof source === 'string') {
+                sourceContent = escapeHtml(source);
+            } else if (source && typeof source === 'object') {
+                // Check if URL exists and is valid
+                if (source.url && source.url.trim()) {
+                    // Create clickable link that opens in new tab
+                    sourceContent = `<a href="${escapeHtml(source.url)}" target="_blank" rel="noopener noreferrer" class="source-link">${escapeHtml(source.text || 'Unknown Source')}</a>`;
+                } else if (source.text) {
+                    // No URL available, display as plain text
+                    sourceContent = escapeHtml(source.text);
+                } else {
+                    // Fallback for malformed source object
+                    sourceContent = 'Unknown Source';
+                }
+            } else {
+                // Handle unexpected types
+                console.warn('Unexpected source type:', source);
+                sourceContent = 'Unknown Source';
+            }
+
+            // Wrap each source in a list item
+            return `<li class="source-item">${sourceContent}</li>`;
+        }).join('');
+
         html += `
             <details class="sources-collapsible">
                 <summary class="sources-header">Sources</summary>
-                <div class="sources-content">${sources.join(', ')}</div>
+                <ul class="sources-content">${formattedSources}</ul>
             </details>
         `;
     }
-    
+
     messageDiv.innerHTML = html;
     chatMessages.appendChild(messageDiv);
     chatMessages.scrollTop = chatMessages.scrollHeight;
-    
+
     return messageId;
 }
 
 // Helper function to escape HTML for user messages
 function escapeHtml(text) {
+    // Handle null, undefined, or non-string values
+    if (text == null || text === undefined) {
+        return '';
+    }
     const div = document.createElement('div');
-    div.textContent = text;
+    div.textContent = String(text);
     return div.innerHTML;
 }
 

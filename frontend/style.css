@@ -241,8 +241,43 @@ header h1 {
 }
 
 .sources-content {
-    padding: 0 0.5rem 0.25rem 1.5rem;
+    padding: 0.5rem 0 0.25rem 0;
+    margin: 0;
+    list-style: none;
     color: var(--text-secondary);
+    font-size: 0.85rem;
+    line-height: 1.6;
+}
+
+.source-item {
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.4rem;
+    background: rgba(37, 99, 235, 0.05);
+    border-left: 3px solid var(--primary-color);
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.source-item:last-child {
+    margin-bottom: 0;
+}
+
+.source-item:hover {
+    background: rgba(37, 99, 235, 0.1);
+    transform: translateX(3px);
+}
+
+.source-link {
+    color: var(--primary-color);
+    text-decoration: none;
+    transition: all 0.2s ease;
+    font-weight: 500;
+    display: inline-block;
+    width: 100%;
+}
+
+.source-link:hover {
+    color: var(--primary-hover);
 }
 
 /* Markdown formatting styles */

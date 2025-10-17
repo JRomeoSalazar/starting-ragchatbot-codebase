@@ -216,3 +216,4 @@ Chunks are prefixed with course/lesson context (e.g., "Course X Lesson 3 content
 - always use uv to run the server do not use pip directly
 - make sure to use uv to manage all dependencies
 - use uv to run Python files
+- When I type "ss" in a message, automatically run lastshot and use the Read tool to display my latest screenshot.
