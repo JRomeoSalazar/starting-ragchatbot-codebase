@@ -241,3 +241,124 @@ def mock_session_manager():
     mock_manager.create_session.return_value = "session_1"
     mock_manager.get_conversation_history.return_value = "User: Previous question\nAssistant: Previous answer"
     return mock_manager
+
+
+# ================ API Testing Fixtures ================
+
+@pytest.fixture
+def mock_rag_system(mock_vector_store, mock_session_manager):
+    """Mock RAGSystem for API testing"""
+    mock_rag = MagicMock()
+    mock_rag.query.return_value = (
+        "This is a test answer from the RAG system.",
+        [{"text": "Introduction to MCP - Lesson 1", "url": "https://example.com/lesson1"}]
+    )
+    mock_rag.get_course_analytics.return_value = {
+        "total_courses": 1,
+        "course_titles": ["Introduction to MCP"]
+    }
+    mock_rag.session_manager = mock_session_manager
+    return mock_rag
+
+
+@pytest.fixture
+def test_client(mock_rag_system):
+    """Create a test client with mocked dependencies"""
+    from fastapi.testclient import TestClient
+    from fastapi import FastAPI
+    from pydantic import BaseModel
+    from typing import List, Optional
+
+    # Create a test app without static file mounting
+    test_app = FastAPI(title="Test RAG System")
+
+    # Pydantic models
+    class QueryRequest(BaseModel):
+        query: str
+        session_id: Optional[str] = None
+
+    class Source(BaseModel):
+        text: str
+        url: Optional[str] = None
+
+    class QueryResponse(BaseModel):
+        answer: str
+        sources: List[Source]
+        session_id: str
+
+    class CourseStats(BaseModel):
+        total_courses: int
+        course_titles: List[str]
+
+    class ClearSessionRequest(BaseModel):
+        session_id: str
+
+    class ClearSessionResponse(BaseModel):
+        success: bool
+        message: str
+
+    # API endpoints
+    @test_app.post("/api/query", response_model=QueryResponse)
+    async def query_documents(request: QueryRequest):
+        from fastapi import HTTPException
+        try:
+            session_id = request.session_id
+            if not session_id:
+                session_id = mock_rag_system.session_manager.create_session()
+
+            answer, sources = mock_rag_system.query(request.query, session_id)
+
+            return QueryResponse(
+                answer=answer,
+                sources=sources,
+                session_id=session_id
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @test_app.get("/api/courses", response_model=CourseStats)
+    async def get_course_stats():
+        from fastapi import HTTPException
+        try:
+            analytics = mock_rag_system.get_course_analytics()
+            return CourseStats(
+                total_courses=analytics["total_courses"],
+                course_titles=analytics["course_titles"]
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @test_app.post("/api/clear-session", response_model=ClearSessionResponse)
+    async def clear_session(request: ClearSessionRequest):
+        from fastapi import HTTPException
+        try:
+            mock_rag_system.session_manager.clear_session(request.session_id)
+            return ClearSessionResponse(
+                success=True,
+                message=f"Session {request.session_id} cleared successfully"
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @test_app.get("/")
+    async def root():
+        return {"message": "RAG System API"}
+
+    return TestClient(test_app)
+
+
+@pytest.fixture
+def sample_query_request():
+    """Sample query request for API testing"""
+    return {
+        "query": "What is MCP?",
+        "session_id": "session_1"
+    }
+
+
+@pytest.fixture
+def sample_query_request_no_session():
+    """Sample query request without session_id"""
+    return {
+        "query": "What is MCP?"
+    }
