@@ -123,6 +123,82 @@ class CourseSearchTool(Tool):
 
         return "\n\n".join(formatted)
 
+
+class CourseOutlineTool(Tool):
+    """Tool for retrieving course outlines including title, link, and lesson list"""
+
+    def __init__(self, vector_store: VectorStore):
+        self.store = vector_store
+
+    def get_tool_definition(self) -> Dict[str, Any]:
+        """Return Anthropic tool definition for this tool"""
+        return {
+            "name": "get_course_outline",
+            "description": "Get course outline with course title, link, and complete list of lessons with their titles and links",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "course_name": {
+                        "type": "string",
+                        "description": "Course title (partial matches work, e.g. 'MCP', 'Introduction')"
+                    }
+                },
+                "required": ["course_name"]
+            }
+        }
+
+    def execute(self, course_name: str) -> str:
+        """
+        Execute the course outline tool with given course name.
+
+        Args:
+            course_name: Course title to get outline for
+
+        Returns:
+            Formatted course outline or error message
+        """
+        # Get course outline from vector store
+        outline = self.store.get_course_outline(course_name)
+
+        if outline is None:
+            return f"No course found matching '{course_name}'."
+
+        # Format the outline
+        return self._format_outline(outline)
+
+    def _format_outline(self, outline: Dict[str, Any]) -> str:
+        """Format course outline for display"""
+        result = []
+
+        # Course title and link
+        result.append(f"**Course:** {outline['title']}")
+        if outline.get('course_link'):
+            result.append(f"**Course Link:** {outline['course_link']}")
+
+        # Instructor
+        if outline.get('instructor'):
+            result.append(f"**Instructor:** {outline['instructor']}")
+
+        # Lesson count
+        lesson_count = len(outline.get('lessons', []))
+        result.append(f"\n**Total Lessons:** {lesson_count}")
+
+        # Lesson list
+        if outline.get('lessons'):
+            result.append("\n**Lessons:**")
+            for lesson in outline['lessons']:
+                lesson_num = lesson.get('lesson_number')
+                lesson_title = lesson.get('lesson_title', 'Untitled')
+                lesson_link = lesson.get('lesson_link')
+
+                lesson_line = f"  {lesson_num}. {lesson_title}"
+                if lesson_link:
+                    lesson_line += f" - {lesson_link}"
+                result.append(lesson_line)
+
+        return "\n".join(result)
+
+
 class ToolManager:
     """Manages available tools for the AI"""
     

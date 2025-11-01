@@ -4,7 +4,10 @@
       "Bash(cat:*)",
       "Bash(curl:*)",
       "Bash(lastshot:*)",
-      "Read(//mnt/c/Users/Jorge/Pictures/Screenshots/**)"
+      "Read(//mnt/c/Users/Jorge/Pictures/Screenshots/**)",
+      "Bash(./run.sh)",
+      "Bash(uv sync:*)",
+      "Bash(uv run pytest:*)"
     ],
     "deny": [],
     "ask": []
