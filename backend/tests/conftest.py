@@ -1,18 +1,19 @@
 """Shared test fixtures for RAG chatbot tests"""
 
-import pytest
 import sys
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 from unittest.mock import MagicMock, Mock
+
+import pytest
 
 # Add backend directory to path for imports
 backend_path = Path(__file__).parent.parent
 sys.path.insert(0, str(backend_path))
 
-from vector_store import SearchResults
-from models import Course, Lesson, CourseChunk
 from config import Config
+from models import Course, CourseChunk, Lesson
+from vector_store import SearchResults
 
 
 @pytest.fixture
@@ -34,16 +35,28 @@ def mock_config():
 def sample_course_data():
     """Sample course data for testing"""
     lessons = [
-        Lesson(lesson_number=0, title="Introduction", lesson_link="https://example.com/lesson0"),
-        Lesson(lesson_number=1, title="Getting Started", lesson_link="https://example.com/lesson1"),
-        Lesson(lesson_number=2, title="Advanced Topics", lesson_link="https://example.com/lesson2")
+        Lesson(
+            lesson_number=0,
+            title="Introduction",
+            lesson_link="https://example.com/lesson0",
+        ),
+        Lesson(
+            lesson_number=1,
+            title="Getting Started",
+            lesson_link="https://example.com/lesson1",
+        ),
+        Lesson(
+            lesson_number=2,
+            title="Advanced Topics",
+            lesson_link="https://example.com/lesson2",
+        ),
     ]
 
     course = Course(
         title="Introduction to MCP",
         course_link="https://example.com/course",
         instructor="Test Instructor",
-        lessons=lessons
+        lessons=lessons,
     )
 
     return course
@@ -57,20 +70,20 @@ def sample_course_chunks(sample_course_data):
             content="Introduction to MCP Lesson 0 content: This is the introduction to Model Context Protocol.",
             course_title=sample_course_data.title,
             lesson_number=0,
-            chunk_index=0
+            chunk_index=0,
         ),
         CourseChunk(
             content="Introduction to MCP Lesson 1 content: Let's get started with MCP basics.",
             course_title=sample_course_data.title,
             lesson_number=1,
-            chunk_index=1
+            chunk_index=1,
         ),
         CourseChunk(
             content="Introduction to MCP Lesson 2 content: Advanced MCP concepts and patterns.",
             course_title=sample_course_data.title,
             lesson_number=2,
-            chunk_index=2
-        )
+            chunk_index=2,
+        ),
     ]
     return chunks
 
@@ -84,12 +97,12 @@ def sample_search_results(sample_course_chunks):
             {
                 "course_title": chunk.course_title,
                 "lesson_number": chunk.lesson_number,
-                "chunk_index": chunk.chunk_index
+                "chunk_index": chunk.chunk_index,
             }
             for chunk in sample_course_chunks
         ],
         distances=[0.1, 0.2, 0.3],
-        error=None
+        error=None,
     )
     return results
 
@@ -97,12 +110,7 @@ def sample_search_results(sample_course_chunks):
 @pytest.fixture
 def empty_search_results():
     """Empty SearchResults for testing"""
-    return SearchResults(
-        documents=[],
-        metadata=[],
-        distances=[],
-        error=None
-    )
+    return SearchResults(documents=[], metadata=[], distances=[], error=None)
 
 
 @pytest.fixture
@@ -135,10 +143,22 @@ def mock_vector_store(sample_search_results):
         "instructor": "Test Instructor",
         "lesson_count": 3,
         "lessons": [
-            {"lesson_number": 0, "lesson_title": "Introduction", "lesson_link": "https://example.com/lesson0"},
-            {"lesson_number": 1, "lesson_title": "Getting Started", "lesson_link": "https://example.com/lesson1"},
-            {"lesson_number": 2, "lesson_title": "Advanced Topics", "lesson_link": "https://example.com/lesson2"}
-        ]
+            {
+                "lesson_number": 0,
+                "lesson_title": "Introduction",
+                "lesson_link": "https://example.com/lesson0",
+            },
+            {
+                "lesson_number": 1,
+                "lesson_title": "Getting Started",
+                "lesson_link": "https://example.com/lesson1",
+            },
+            {
+                "lesson_number": 2,
+                "lesson_title": "Advanced Topics",
+                "lesson_link": "https://example.com/lesson2",
+            },
+        ],
     }
 
     # Mock existing course titles
@@ -194,7 +214,9 @@ def mock_anthropic_final_response():
 
     mock_content = MagicMock()
     mock_content.type = "text"
-    mock_content.text = "Based on the search results, MCP stands for Model Context Protocol."
+    mock_content.text = (
+        "Based on the search results, MCP stands for Model Context Protocol."
+    )
     mock_response.content = [mock_content]
 
     return mock_response
@@ -221,13 +243,15 @@ def mock_tool_manager():
                 "properties": {
                     "query": {"type": "string"},
                     "course_name": {"type": "string"},
-                    "lesson_number": {"type": "integer"}
+                    "lesson_number": {"type": "integer"},
                 },
-                "required": ["query"]
-            }
+                "required": ["query"],
+            },
         }
     ]
-    mock_manager.execute_tool.return_value = "[Introduction to MCP - Lesson 1]\nMCP basics content..."
+    mock_manager.execute_tool.return_value = (
+        "[Introduction to MCP - Lesson 1]\nMCP basics content..."
+    )
     mock_manager.get_last_sources.return_value = [
         {"text": "Introduction to MCP - Lesson 1", "url": "https://example.com/lesson1"}
     ]
@@ -239,5 +263,7 @@ def mock_session_manager():
     """Mock SessionManager for testing"""
     mock_manager = MagicMock()
     mock_manager.create_session.return_value = "session_1"
-    mock_manager.get_conversation_history.return_value = "User: Previous question\nAssistant: Previous answer"
+    mock_manager.get_conversation_history.return_value = (
+        "User: Previous question\nAssistant: Previous answer"
+    )
     return mock_manager

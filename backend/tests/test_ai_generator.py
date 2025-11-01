@@ -1,12 +1,14 @@
 """Tests for AIGenerator tool calling and response generation"""
 
+from unittest.mock import MagicMock, call, patch
+
 import pytest
-from unittest.mock import MagicMock, patch, call
 from ai_generator import AIGenerator
 
 
 class MockTextBlock:
     """Simple mock for text content blocks"""
+
     def __init__(self, text_content):
         self.type = "text"
         self.text = text_content
@@ -17,28 +19,38 @@ class TestAIGenerator:
 
     def test_generate_response_without_tools(self, mock_config, mock_anthropic_client):
         """Test direct response without any tools"""
-        with patch('ai_generator.anthropic.Anthropic', return_value=mock_anthropic_client):
-            generator = AIGenerator(mock_config.ANTHROPIC_API_KEY, mock_config.ANTHROPIC_MODEL)
+        with patch(
+            "ai_generator.anthropic.Anthropic", return_value=mock_anthropic_client
+        ):
+            generator = AIGenerator(
+                mock_config.ANTHROPIC_API_KEY, mock_config.ANTHROPIC_MODEL
+            )
 
             response = generator.generate_response(
                 query="What is 2+2?",
                 conversation_history=None,
                 tools=None,
-                tool_manager=None
+                tool_manager=None,
             )
 
             # Verify API was called once without tools
             assert mock_anthropic_client.messages.create.call_count == 1
             call_kwargs = mock_anthropic_client.messages.create.call_args[1]
 
-            assert 'tools' not in call_kwargs
-            assert call_kwargs['messages'][0]['content'] == "What is 2+2?"
+            assert "tools" not in call_kwargs
+            assert call_kwargs["messages"][0]["content"] == "What is 2+2?"
             assert response == "This is a direct answer from Claude."
 
-    def test_generate_response_with_tools_no_use(self, mock_config, mock_anthropic_client, mock_tool_manager):
+    def test_generate_response_with_tools_no_use(
+        self, mock_config, mock_anthropic_client, mock_tool_manager
+    ):
         """Test response when tools are available but not used"""
-        with patch('ai_generator.anthropic.Anthropic', return_value=mock_anthropic_client):
-            generator = AIGenerator(mock_config.ANTHROPIC_API_KEY, mock_config.ANTHROPIC_MODEL)
+        with patch(
+            "ai_generator.anthropic.Anthropic", return_value=mock_anthropic_client
+        ):
+            generator = AIGenerator(
+                mock_config.ANTHROPIC_API_KEY, mock_config.ANTHROPIC_MODEL
+            )
 
             # Mock response without tool use (end_turn)
             mock_response = MagicMock()
@@ -53,13 +65,13 @@ class TestAIGenerator:
                 query="What is Python?",
                 conversation_history=None,
                 tools=mock_tool_manager.get_tool_definitions(),
-                tool_manager=mock_tool_manager
+                tool_manager=mock_tool_manager,
             )
 
             # Verify tools were provided in the call
             call_kwargs = mock_anthropic_client.messages.create.call_args[1]
-            assert 'tools' in call_kwargs
-            assert call_kwargs['tool_choice'] == {"type": "auto"}
+            assert "tools" in call_kwargs
+            assert call_kwargs["tool_choice"] == {"type": "auto"}
 
             # Verify only one API call was made (no tool execution)
             assert mock_anthropic_client.messages.create.call_count == 1
@@ -71,23 +83,27 @@ class TestAIGenerator:
         mock_anthropic_client,
         mock_tool_manager,
         mock_anthropic_response_with_tool,
-        mock_anthropic_final_response
+        mock_anthropic_final_response,
     ):
         """Test that tool_use stop_reason triggers _handle_tool_execution"""
-        with patch('ai_generator.anthropic.Anthropic', return_value=mock_anthropic_client):
-            generator = AIGenerator(mock_config.ANTHROPIC_API_KEY, mock_config.ANTHROPIC_MODEL)
+        with patch(
+            "ai_generator.anthropic.Anthropic", return_value=mock_anthropic_client
+        ):
+            generator = AIGenerator(
+                mock_config.ANTHROPIC_API_KEY, mock_config.ANTHROPIC_MODEL
+            )
 
             # First call returns tool_use, second call returns final answer
             mock_anthropic_client.messages.create.side_effect = [
                 mock_anthropic_response_with_tool,
-                mock_anthropic_final_response
+                mock_anthropic_final_response,
             ]
 
             response = generator.generate_response(
                 query="What is MCP?",
                 conversation_history=None,
                 tools=mock_tool_manager.get_tool_definitions(),
-                tool_manager=mock_tool_manager
+                tool_manager=mock_tool_manager,
             )
 
             # Verify two API calls were made
@@ -99,10 +115,13 @@ class TestAIGenerator:
 
             # Verify correct tool and parameters
             assert call_args[0][0] == "search_course_content"
-            assert call_args[1]['query'] == "MCP basics"
+            assert call_args[1]["query"] == "MCP basics"
 
             # Verify final response
-            assert response == "Based on the search results, MCP stands for Model Context Protocol."
+            assert (
+                response
+                == "Based on the search results, MCP stands for Model Context Protocol."
+            )
 
     def test_tool_execution_message_flow(
         self,
@@ -110,54 +129,63 @@ class TestAIGenerator:
         mock_anthropic_client,
         mock_tool_manager,
         mock_anthropic_response_with_tool,
-        mock_anthropic_final_response
+        mock_anthropic_final_response,
     ):
         """Test correct message structure in tool execution flow"""
-        with patch('ai_generator.anthropic.Anthropic', return_value=mock_anthropic_client):
-            generator = AIGenerator(mock_config.ANTHROPIC_API_KEY, mock_config.ANTHROPIC_MODEL)
+        with patch(
+            "ai_generator.anthropic.Anthropic", return_value=mock_anthropic_client
+        ):
+            generator = AIGenerator(
+                mock_config.ANTHROPIC_API_KEY, mock_config.ANTHROPIC_MODEL
+            )
 
             # Setup response sequence
             mock_anthropic_client.messages.create.side_effect = [
                 mock_anthropic_response_with_tool,
-                mock_anthropic_final_response
+                mock_anthropic_final_response,
             ]
 
             response = generator.generate_response(
                 query="What is MCP?",
                 conversation_history=None,
                 tools=mock_tool_manager.get_tool_definitions(),
-                tool_manager=mock_tool_manager
+                tool_manager=mock_tool_manager,
             )
 
             # Get the second API call (after tool execution)
-            second_call_kwargs = mock_anthropic_client.messages.create.call_args_list[1][1]
+            second_call_kwargs = mock_anthropic_client.messages.create.call_args_list[
+                1
+            ][1]
 
             # Verify message structure
-            messages = second_call_kwargs['messages']
-            assert len(messages) == 3  # user query, assistant tool_use, user tool_result
+            messages = second_call_kwargs["messages"]
+            assert (
+                len(messages) == 3
+            )  # user query, assistant tool_use, user tool_result
 
             # Verify first message is user query
-            assert messages[0]['role'] == 'user'
+            assert messages[0]["role"] == "user"
 
             # Verify second message is assistant with tool_use content
-            assert messages[1]['role'] == 'assistant'
-            assert messages[1]['content'] == mock_anthropic_response_with_tool.content
+            assert messages[1]["role"] == "assistant"
+            assert messages[1]["content"] == mock_anthropic_response_with_tool.content
 
             # Verify third message is user with tool results
-            assert messages[2]['role'] == 'user'
-            assert isinstance(messages[2]['content'], list)
-            assert messages[2]['content'][0]['type'] == 'tool_result'
-            assert messages[2]['content'][0]['tool_use_id'] == 'tool_use_123'
+            assert messages[2]["role"] == "user"
+            assert isinstance(messages[2]["content"], list)
+            assert messages[2]["content"][0]["type"] == "tool_result"
+            assert messages[2]["content"][0]["tool_use_id"] == "tool_use_123"
 
     def test_infinite_loop_prevention_via_round_limit(
-        self,
-        mock_config,
-        mock_anthropic_client,
-        mock_tool_manager
+        self, mock_config, mock_anthropic_client, mock_tool_manager
     ):
         """Test that round limit prevents infinite loops even when tools are in all calls"""
-        with patch('ai_generator.anthropic.Anthropic', return_value=mock_anthropic_client):
-            generator = AIGenerator(mock_config.ANTHROPIC_API_KEY, mock_config.ANTHROPIC_MODEL)
+        with patch(
+            "ai_generator.anthropic.Anthropic", return_value=mock_anthropic_client
+        ):
+            generator = AIGenerator(
+                mock_config.ANTHROPIC_API_KEY, mock_config.ANTHROPIC_MODEL
+            )
 
             # Create responses that always request tools (simulating infinite loop scenario)
             mock_tool_response = MagicMock()
@@ -178,7 +206,7 @@ class TestAIGenerator:
                 query="Test infinite loop prevention",
                 conversation_history=None,
                 tools=mock_tool_manager.get_tool_definitions(),
-                tool_manager=mock_tool_manager
+                tool_manager=mock_tool_manager,
             )
 
             # Should stop at 3 calls (initial + 2 rounds) despite tool_use responses
@@ -186,16 +214,20 @@ class TestAIGenerator:
 
             # All calls should have tools parameter (different from old behavior)
             for call_args in mock_anthropic_client.messages.create.call_args_list:
-                assert 'tools' in call_args[1]
-                assert call_args[1]['tool_choice'] == {"type": "auto"}
+                assert "tools" in call_args[1]
+                assert call_args[1]["tool_choice"] == {"type": "auto"}
 
             # Response is returned after round limit
             assert response == "Response after max rounds"
 
     def test_conversation_history_integration(self, mock_config, mock_anthropic_client):
         """Test that conversation history is properly included in system prompt"""
-        with patch('ai_generator.anthropic.Anthropic', return_value=mock_anthropic_client):
-            generator = AIGenerator(mock_config.ANTHROPIC_API_KEY, mock_config.ANTHROPIC_MODEL)
+        with patch(
+            "ai_generator.anthropic.Anthropic", return_value=mock_anthropic_client
+        ):
+            generator = AIGenerator(
+                mock_config.ANTHROPIC_API_KEY, mock_config.ANTHROPIC_MODEL
+            )
 
             history = "User: What is MCP?\nAssistant: Model Context Protocol"
 
@@ -203,12 +235,12 @@ class TestAIGenerator:
                 query="Tell me more about it",
                 conversation_history=history,
                 tools=None,
-                tool_manager=None
+                tool_manager=None,
             )
 
             # Verify history was included in system prompt
             call_kwargs = mock_anthropic_client.messages.create.call_args[1]
-            system_content = call_kwargs['system']
+            system_content = call_kwargs["system"]
 
             assert "Previous conversation:" in system_content
             assert "What is MCP?" in system_content
@@ -216,19 +248,23 @@ class TestAIGenerator:
 
     def test_conversation_history_absent(self, mock_config, mock_anthropic_client):
         """Test system prompt when no conversation history exists"""
-        with patch('ai_generator.anthropic.Anthropic', return_value=mock_anthropic_client):
-            generator = AIGenerator(mock_config.ANTHROPIC_API_KEY, mock_config.ANTHROPIC_MODEL)
+        with patch(
+            "ai_generator.anthropic.Anthropic", return_value=mock_anthropic_client
+        ):
+            generator = AIGenerator(
+                mock_config.ANTHROPIC_API_KEY, mock_config.ANTHROPIC_MODEL
+            )
 
             response = generator.generate_response(
                 query="What is MCP?",
                 conversation_history=None,
                 tools=None,
-                tool_manager=None
+                tool_manager=None,
             )
 
             # Verify history section not in system prompt
             call_kwargs = mock_anthropic_client.messages.create.call_args[1]
-            system_content = call_kwargs['system']
+            system_content = call_kwargs["system"]
 
             assert "Previous conversation:" not in system_content
 
@@ -237,11 +273,15 @@ class TestAIGenerator:
         mock_config,
         mock_anthropic_client,
         mock_tool_manager,
-        mock_anthropic_final_response
+        mock_anthropic_final_response,
     ):
         """Test handling of multiple tool calls in single response"""
-        with patch('ai_generator.anthropic.Anthropic', return_value=mock_anthropic_client):
-            generator = AIGenerator(mock_config.ANTHROPIC_API_KEY, mock_config.ANTHROPIC_MODEL)
+        with patch(
+            "ai_generator.anthropic.Anthropic", return_value=mock_anthropic_client
+        ):
+            generator = AIGenerator(
+                mock_config.ANTHROPIC_API_KEY, mock_config.ANTHROPIC_MODEL
+            )
 
             # Create response with multiple tool uses
             mock_multi_tool_response = MagicMock()
@@ -266,36 +306,42 @@ class TestAIGenerator:
             # Setup response sequence
             mock_anthropic_client.messages.create.side_effect = [
                 mock_multi_tool_response,
-                mock_anthropic_final_response
+                mock_anthropic_final_response,
             ]
 
             response = generator.generate_response(
                 query="Compare MCP and Anthropic",
                 conversation_history=None,
                 tools=mock_tool_manager.get_tool_definitions(),
-                tool_manager=mock_tool_manager
+                tool_manager=mock_tool_manager,
             )
 
             # Verify both tools were executed
             assert mock_tool_manager.execute_tool.call_count == 2
 
             # Verify second API call has both tool results
-            second_call_kwargs = mock_anthropic_client.messages.create.call_args_list[1][1]
-            tool_results = second_call_kwargs['messages'][2]['content']
+            second_call_kwargs = mock_anthropic_client.messages.create.call_args_list[
+                1
+            ][1]
+            tool_results = second_call_kwargs["messages"][2]["content"]
             assert len(tool_results) == 2
-            assert tool_results[0]['tool_use_id'] == 'tool_use_1'
-            assert tool_results[1]['tool_use_id'] == 'tool_use_2'
+            assert tool_results[0]["tool_use_id"] == "tool_use_1"
+            assert tool_results[1]["tool_use_id"] == "tool_use_2"
 
     def test_two_round_tool_execution(
         self,
         mock_config,
         mock_anthropic_client,
         mock_tool_manager,
-        mock_anthropic_final_response
+        mock_anthropic_final_response,
     ):
         """Test that Claude can make 2 sequential tool calls across separate rounds"""
-        with patch('ai_generator.anthropic.Anthropic', return_value=mock_anthropic_client):
-            generator = AIGenerator(mock_config.ANTHROPIC_API_KEY, mock_config.ANTHROPIC_MODEL)
+        with patch(
+            "ai_generator.anthropic.Anthropic", return_value=mock_anthropic_client
+        ):
+            generator = AIGenerator(
+                mock_config.ANTHROPIC_API_KEY, mock_config.ANTHROPIC_MODEL
+            )
 
             # Create first tool use response
             mock_first_tool = MagicMock()
@@ -321,14 +367,14 @@ class TestAIGenerator:
             mock_anthropic_client.messages.create.side_effect = [
                 mock_first_tool,
                 mock_second_tool,
-                mock_anthropic_final_response
+                mock_anthropic_final_response,
             ]
 
             response = generator.generate_response(
                 query="What topic is covered in lesson 4 of MCP?",
                 conversation_history=None,
                 tools=mock_tool_manager.get_tool_definitions(),
-                tool_manager=mock_tool_manager
+                tool_manager=mock_tool_manager,
             )
 
             # Verify 3 API calls were made (initial + 2 rounds)
@@ -338,17 +384,21 @@ class TestAIGenerator:
             assert mock_tool_manager.execute_tool.call_count == 2
 
             # Verify final response returned
-            assert response == "Based on the search results, MCP stands for Model Context Protocol."
+            assert (
+                response
+                == "Based on the search results, MCP stands for Model Context Protocol."
+            )
 
     def test_max_rounds_limit(
-        self,
-        mock_config,
-        mock_anthropic_client,
-        mock_tool_manager
+        self, mock_config, mock_anthropic_client, mock_tool_manager
     ):
         """Test that execution stops after 2 rounds even if Claude wants more"""
-        with patch('ai_generator.anthropic.Anthropic', return_value=mock_anthropic_client):
-            generator = AIGenerator(mock_config.ANTHROPIC_API_KEY, mock_config.ANTHROPIC_MODEL)
+        with patch(
+            "ai_generator.anthropic.Anthropic", return_value=mock_anthropic_client
+        ):
+            generator = AIGenerator(
+                mock_config.ANTHROPIC_API_KEY, mock_config.ANTHROPIC_MODEL
+            )
 
             # Create tool use responses that keep requesting tools
             mock_tool_response_1 = MagicMock()
@@ -385,14 +435,14 @@ class TestAIGenerator:
             mock_anthropic_client.messages.create.side_effect = [
                 mock_tool_response_1,
                 mock_tool_response_2,
-                mock_tool_response_3
+                mock_tool_response_3,
             ]
 
             response = generator.generate_response(
                 query="Test query",
                 conversation_history=None,
                 tools=mock_tool_manager.get_tool_definitions(),
-                tool_manager=mock_tool_manager
+                tool_manager=mock_tool_manager,
             )
 
             # Verify only 3 API calls made (initial + 2 rounds)
@@ -409,11 +459,15 @@ class TestAIGenerator:
         mock_config,
         mock_anthropic_client,
         mock_tool_manager,
-        mock_anthropic_response_with_tool
+        mock_anthropic_response_with_tool,
     ):
         """Test that execution stops after 1 round if Claude doesn't need more"""
-        with patch('ai_generator.anthropic.Anthropic', return_value=mock_anthropic_client):
-            generator = AIGenerator(mock_config.ANTHROPIC_API_KEY, mock_config.ANTHROPIC_MODEL)
+        with patch(
+            "ai_generator.anthropic.Anthropic", return_value=mock_anthropic_client
+        ):
+            generator = AIGenerator(
+                mock_config.ANTHROPIC_API_KEY, mock_config.ANTHROPIC_MODEL
+            )
 
             # Second response is end_turn (no more tools needed)
             mock_final = MagicMock()
@@ -426,14 +480,14 @@ class TestAIGenerator:
             # Setup response sequence: tool_use → end_turn
             mock_anthropic_client.messages.create.side_effect = [
                 mock_anthropic_response_with_tool,
-                mock_final
+                mock_final,
             ]
 
             response = generator.generate_response(
                 query="Simple query needing one tool",
                 conversation_history=None,
                 tools=mock_tool_manager.get_tool_definitions(),
-                tool_manager=mock_tool_manager
+                tool_manager=mock_tool_manager,
             )
 
             # Verify only 2 API calls (initial + 1 round)
@@ -451,23 +505,27 @@ class TestAIGenerator:
         mock_anthropic_client,
         mock_tool_manager,
         mock_anthropic_response_with_tool,
-        mock_anthropic_final_response
+        mock_anthropic_final_response,
     ):
         """Test that tools parameter is included in intermediate API calls"""
-        with patch('ai_generator.anthropic.Anthropic', return_value=mock_anthropic_client):
-            generator = AIGenerator(mock_config.ANTHROPIC_API_KEY, mock_config.ANTHROPIC_MODEL)
+        with patch(
+            "ai_generator.anthropic.Anthropic", return_value=mock_anthropic_client
+        ):
+            generator = AIGenerator(
+                mock_config.ANTHROPIC_API_KEY, mock_config.ANTHROPIC_MODEL
+            )
 
             # Setup response sequence
             mock_anthropic_client.messages.create.side_effect = [
                 mock_anthropic_response_with_tool,
-                mock_anthropic_final_response
+                mock_anthropic_final_response,
             ]
 
             response = generator.generate_response(
                 query="Test query",
                 conversation_history=None,
                 tools=mock_tool_manager.get_tool_definitions(),
-                tool_manager=mock_tool_manager
+                tool_manager=mock_tool_manager,
             )
 
             # Get both API calls
@@ -475,21 +533,25 @@ class TestAIGenerator:
             second_call = mock_anthropic_client.messages.create.call_args_list[1][1]
 
             # Both calls should have tools parameter
-            assert 'tools' in first_call
-            assert first_call['tool_choice'] == {"type": "auto"}
-            assert 'tools' in second_call
-            assert second_call['tool_choice'] == {"type": "auto"}
+            assert "tools" in first_call
+            assert first_call["tool_choice"] == {"type": "auto"}
+            assert "tools" in second_call
+            assert second_call["tool_choice"] == {"type": "auto"}
 
     def test_message_accumulation_across_rounds(
         self,
         mock_config,
         mock_anthropic_client,
         mock_tool_manager,
-        mock_anthropic_final_response
+        mock_anthropic_final_response,
     ):
         """Test that messages accumulate correctly across multiple rounds"""
-        with patch('ai_generator.anthropic.Anthropic', return_value=mock_anthropic_client):
-            generator = AIGenerator(mock_config.ANTHROPIC_API_KEY, mock_config.ANTHROPIC_MODEL)
+        with patch(
+            "ai_generator.anthropic.Anthropic", return_value=mock_anthropic_client
+        ):
+            generator = AIGenerator(
+                mock_config.ANTHROPIC_API_KEY, mock_config.ANTHROPIC_MODEL
+            )
 
             # First tool use
             mock_first_tool = MagicMock()
@@ -514,43 +576,47 @@ class TestAIGenerator:
             mock_anthropic_client.messages.create.side_effect = [
                 mock_first_tool,
                 mock_second_tool,
-                mock_anthropic_final_response
+                mock_anthropic_final_response,
             ]
 
             response = generator.generate_response(
                 query="Test query",
                 conversation_history=None,
                 tools=mock_tool_manager.get_tool_definitions(),
-                tool_manager=mock_tool_manager
+                tool_manager=mock_tool_manager,
             )
 
             # Check final API call message structure
             final_call = mock_anthropic_client.messages.create.call_args_list[2][1]
-            messages = final_call['messages']
+            messages = final_call["messages"]
 
             # Should have: user query, assistant tool_use #1, user tool_results #1,
             #              assistant tool_use #2, user tool_results #2
             assert len(messages) == 5
 
             # Verify structure
-            assert messages[0]['role'] == 'user'  # Original query
-            assert messages[1]['role'] == 'assistant'  # First tool use
-            assert messages[1]['content'] == mock_first_tool.content
-            assert messages[2]['role'] == 'user'  # First tool results
-            assert messages[3]['role'] == 'assistant'  # Second tool use
-            assert messages[3]['content'] == mock_second_tool.content
-            assert messages[4]['role'] == 'user'  # Second tool results
+            assert messages[0]["role"] == "user"  # Original query
+            assert messages[1]["role"] == "assistant"  # First tool use
+            assert messages[1]["content"] == mock_first_tool.content
+            assert messages[2]["role"] == "user"  # First tool results
+            assert messages[3]["role"] == "assistant"  # Second tool use
+            assert messages[3]["content"] == mock_second_tool.content
+            assert messages[4]["role"] == "user"  # Second tool results
 
     def test_tool_error_during_second_round(
         self,
         mock_config,
         mock_anthropic_client,
         mock_tool_manager,
-        mock_anthropic_response_with_tool
+        mock_anthropic_response_with_tool,
     ):
         """Test graceful handling when tool execution fails in second round"""
-        with patch('ai_generator.anthropic.Anthropic', return_value=mock_anthropic_client):
-            generator = AIGenerator(mock_config.ANTHROPIC_API_KEY, mock_config.ANTHROPIC_MODEL)
+        with patch(
+            "ai_generator.anthropic.Anthropic", return_value=mock_anthropic_client
+        ):
+            generator = AIGenerator(
+                mock_config.ANTHROPIC_API_KEY, mock_config.ANTHROPIC_MODEL
+            )
 
             # Second tool use
             mock_second_tool = MagicMock()
@@ -573,20 +639,20 @@ class TestAIGenerator:
             mock_anthropic_client.messages.create.side_effect = [
                 mock_anthropic_response_with_tool,
                 mock_second_tool,
-                mock_final
+                mock_final,
             ]
 
             # First tool succeeds, second tool fails
             mock_tool_manager.execute_tool.side_effect = [
                 "First tool result",
-                "Error: Tool execution failed"
+                "Error: Tool execution failed",
             ]
 
             response = generator.generate_response(
                 query="Test query",
                 conversation_history=None,
                 tools=mock_tool_manager.get_tool_definitions(),
-                tool_manager=mock_tool_manager
+                tool_manager=mock_tool_manager,
             )
 
             # Should complete despite error (error is passed to Claude as tool result)
@@ -595,19 +661,23 @@ class TestAIGenerator:
 
     def test_api_parameters(self, mock_config, mock_anthropic_client):
         """Test that base API parameters are correctly set"""
-        with patch('ai_generator.anthropic.Anthropic', return_value=mock_anthropic_client):
-            generator = AIGenerator(mock_config.ANTHROPIC_API_KEY, mock_config.ANTHROPIC_MODEL)
+        with patch(
+            "ai_generator.anthropic.Anthropic", return_value=mock_anthropic_client
+        ):
+            generator = AIGenerator(
+                mock_config.ANTHROPIC_API_KEY, mock_config.ANTHROPIC_MODEL
+            )
 
             response = generator.generate_response(
                 query="Test query",
                 conversation_history=None,
                 tools=None,
-                tool_manager=None
+                tool_manager=None,
             )
 
             call_kwargs = mock_anthropic_client.messages.create.call_args[1]
 
             # Verify base parameters
-            assert call_kwargs['model'] == mock_config.ANTHROPIC_MODEL
-            assert call_kwargs['temperature'] == 0
-            assert call_kwargs['max_tokens'] == 800
+            assert call_kwargs["model"] == mock_config.ANTHROPIC_MODEL
+            assert call_kwargs["temperature"] == 0
+            assert call_kwargs["max_tokens"] == 800

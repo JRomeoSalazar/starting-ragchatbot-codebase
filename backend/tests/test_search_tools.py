@@ -1,8 +1,9 @@
 """Tests for CourseSearchTool.execute() method"""
 
-import pytest
 from unittest.mock import MagicMock
-from search_tools import CourseSearchTool, ToolManager, CourseOutlineTool
+
+import pytest
+from search_tools import CourseOutlineTool, CourseSearchTool, ToolManager
 from vector_store import SearchResults
 
 
@@ -17,9 +18,7 @@ class TestCourseSearchTool:
 
         # Verify VectorStore.search was called with correct parameters
         mock_vector_store.search.assert_called_once_with(
-            query="What is MCP?",
-            course_name=None,
-            lesson_number=None
+            query="What is MCP?", course_name=None, lesson_number=None
         )
 
         # Verify result contains formatted content
@@ -35,9 +34,7 @@ class TestCourseSearchTool:
 
         # Verify course filter was passed
         mock_vector_store.search.assert_called_once_with(
-            query="What is MCP?",
-            course_name="Introduction to MCP",
-            lesson_number=None
+            query="What is MCP?", course_name="Introduction to MCP", lesson_number=None
         )
 
         assert result is not None
@@ -51,9 +48,7 @@ class TestCourseSearchTool:
 
         # Verify lesson filter was passed
         mock_vector_store.search.assert_called_once_with(
-            query="Getting started",
-            course_name=None,
-            lesson_number=1
+            query="Getting started", course_name=None, lesson_number=1
         )
 
         assert result is not None
@@ -65,14 +60,14 @@ class TestCourseSearchTool:
         result = tool.execute(
             query="Advanced concepts",
             course_name="Introduction to MCP",
-            lesson_number=2
+            lesson_number=2,
         )
 
         # Verify both filters were passed
         mock_vector_store.search.assert_called_once_with(
             query="Advanced concepts",
             course_name="Introduction to MCP",
-            lesson_number=2
+            lesson_number=2,
         )
 
         assert result is not None
@@ -89,7 +84,9 @@ class TestCourseSearchTool:
         # Should return a "not found" message
         assert "No relevant content found" in result
 
-    def test_execute_empty_results_with_filters(self, mock_vector_store, empty_search_results):
+    def test_execute_empty_results_with_filters(
+        self, mock_vector_store, empty_search_results
+    ):
         """Test empty results message includes filter information"""
         tool = CourseSearchTool(mock_vector_store)
 
@@ -97,9 +94,7 @@ class TestCourseSearchTool:
         mock_vector_store.search.return_value = empty_search_results
 
         result = tool.execute(
-            query="NonExistentTopic",
-            course_name="MCP",
-            lesson_number=5
+            query="NonExistentTopic", course_name="MCP", lesson_number=5
         )
 
         # Should mention the filters in the message
@@ -126,13 +121,13 @@ class TestCourseSearchTool:
         result = tool.execute(query="MCP basics", course_name="Introduction to MCP")
 
         # Verify last_sources was populated
-        assert hasattr(tool, 'last_sources')
+        assert hasattr(tool, "last_sources")
         assert len(tool.last_sources) > 0
 
         # Check source structure
         for source in tool.last_sources:
-            assert 'text' in source
-            assert 'url' in source
+            assert "text" in source
+            assert "url" in source
 
     def test_format_results_with_course_and_lesson(self, mock_vector_store):
         """Test result formatting includes course title and lesson number"""
@@ -141,13 +136,15 @@ class TestCourseSearchTool:
         # Create specific search results
         results = SearchResults(
             documents=["This is lesson 1 content about MCP."],
-            metadata=[{
-                "course_title": "Introduction to MCP",
-                "lesson_number": 1,
-                "chunk_index": 0
-            }],
+            metadata=[
+                {
+                    "course_title": "Introduction to MCP",
+                    "lesson_number": 1,
+                    "chunk_index": 0,
+                }
+            ],
             distances=[0.1],
-            error=None
+            error=None,
         )
 
         mock_vector_store.search.return_value = results
@@ -181,7 +178,7 @@ class TestToolManager:
         definitions = manager.get_tool_definitions()
 
         assert len(definitions) >= 1
-        assert any(d['name'] == 'search_course_content' for d in definitions)
+        assert any(d["name"] == "search_course_content" for d in definitions)
 
     def test_execute_tool(self, mock_vector_store, sample_search_results):
         """Test executing a tool by name"""
@@ -189,10 +186,7 @@ class TestToolManager:
         tool = CourseSearchTool(mock_vector_store)
         manager.register_tool(tool)
 
-        result = manager.execute_tool(
-            "search_course_content",
-            query="MCP basics"
-        )
+        result = manager.execute_tool("search_course_content", query="MCP basics")
 
         assert result is not None
         assert isinstance(result, str)
